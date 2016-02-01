@@ -71,7 +71,7 @@ class Worker(multiprocessing.Process):
 
     def set_bound(self, key, marker, retries, type_=None):
         # api doesn't allow setting a bound with a blank marker
-        if marker:
+        if marker != ' ':
             if type_ is None:
                 type_ = self.type
             try:
@@ -222,6 +222,7 @@ class DataWorker(Worker):
         log.debug('syncing object %s/%s', bucket, obj.name)
         self.op_id += 1
         local_op_id = self.local_lock_id + ':' +  str(self.op_id)
+        local_wait_op_id = self.local_lock_id
         found = False
 
         try:
@@ -250,7 +251,7 @@ class DataWorker(Worker):
             dev_log.warn(msg, exc_info=True)
             log.warning('%s: %s' % (msg, error))
             # wait for it if the op state is in-progress
-            self.wait_for_object(bucket, obj, until, local_op_id)
+            self.wait_for_object(bucket, obj, until, local_wait_op_id)
         # TODO: clean up old op states
         try:
             if found:
@@ -311,6 +312,7 @@ class DataWorker(Worker):
                     'will retry sync of failed object at next incremental sync'
                 )
                 retry_objs.append(obj)
+
         log.info('synced %s objects' % count)
         log.info('completed syncing bucket "%s"', bucket)
         log.info('*'*80)
